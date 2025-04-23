@@ -228,9 +228,12 @@ def _module_account_payment_to_install(env):
 
 @openupgrade.migrate()
 def migrate(env, version):
-    openupgrade.rename_models(env.cr, _model_renames)
-    openupgrade.rename_tables(env.cr, _table_renames)
-    openupgrade.rename_fields(env, _field_renames)
-    openupgrade.copy_columns(env.cr, _columns_copies)
-    openupgrade.rename_xmlids(env.cr, _xmlid_renames)
+    # First check if the old table exists before trying to rename it
+    if openupgrade.table_exists(env.cr, "payment_acquirer"):
+        openupgrade.rename_models(env.cr, _model_renames)
+        openupgrade.rename_tables(env.cr, _table_renames)
+        openupgrade.rename_fields(env, _field_renames)
+        openupgrade.copy_columns(env.cr, _columns_copies)
+        openupgrade.rename_xmlids(env.cr, _xmlid_renames)
+
     _module_account_payment_to_install(env)

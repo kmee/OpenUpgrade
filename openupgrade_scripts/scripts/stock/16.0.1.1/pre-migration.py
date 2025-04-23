@@ -131,19 +131,26 @@ def _prefill_stock_move_quantity_done(env):
     """It's going to be an stored field now. Let's try to speed up the field
     computation so it performs better in larga stock_move tables"""
     if not openupgrade.column_exists(env.cr, "stock_move", "quantity_done"):
-        openupgrade.add_fields(
-            env,
-            [
-                (
-                    "quantity_done",
-                    "stock.move",
-                    "stock_move",
-                    "float",
-                    False,
-                    "stock",
-                )
-            ],
+        # openupgrade.add_fields(
+        #     env,
+        #     [
+        #         (
+        #             "quantity_done",
+        #             "stock.move",
+        #             "stock_move",
+        #             "numeric",
+        #             0.0,
+        #             "stock",
+        #         )
+        #     ],
+        # )
+
+        openupgrade.logged_query(
+            env.cr,
+            """ALTER TABLE stock_move
+                ADD COLUMN quantity_done numeric DEFAULT 0.0""",
         )
+
     # For moves with lines with different units of measure we rather pass them through
     # the ORM in post-migration, although this will deal with the vast majority of
     # moves.

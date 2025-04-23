@@ -485,21 +485,15 @@ def _fill_account_bank_statement_is_complete(env):
 
 
 def _precreate_account_move_auto_post_until(env):
-    """This new account.move field is ment to be filled manually. Its compute acts
+    """This new account.move field is meant to be filled manually. Its compute acts
     merely as an onchange. We don't need to pre-fill it"""
     if not openupgrade.column_exists(env.cr, "account_move", "auto_post_until"):
-        openupgrade.add_fields(
-            env,
-            [
-                (
-                    "auto_post_until",
-                    "account.move",
-                    "account_move",
-                    "date",
-                    False,
-                    "account",
-                )
-            ],
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_move
+            ADD COLUMN auto_post_until date DEFAULT NULL
+            """,
         )
 
 
