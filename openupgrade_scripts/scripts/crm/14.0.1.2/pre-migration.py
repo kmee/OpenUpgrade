@@ -4,22 +4,63 @@
 from openupgradelib import openupgrade
 
 
+def add_crm_lead_fields(env):
+    # Add numeric fields manually
+    if not openupgrade.column_exists(env.cr, "crm_lead", "recurring_revenue_monthly"):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE crm_lead
+            ADD COLUMN recurring_revenue_monthly numeric
+            """,
+        )
+    if not openupgrade.column_exists(
+        env.cr, "crm_lead", "recurring_revenue_monthly_prorated"
+    ):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE crm_lead
+            ADD COLUMN recurring_revenue_monthly_prorated numeric
+            """,
+        )
+
+
+def rename_crm_tables(env):
+    # Check if old table exists before renaming
+    env.cr.execute(
+        """
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables
+            WHERE table_name = 'crm_lead_tag_rel'
+        )
+        """
+    )
+    if env.cr.fetchone()[0]:
+        openupgrade.rename_tables(env.cr, [("crm_lead_tag_rel", "crm_tag_rel")])
+
+
 @openupgrade.migrate()
 def migrate(env, version):
-    openupgrade.logged_query(
-        env.cr, "ALTER TABLE crm_lead ADD recurring_revenue_monthly NUMERIC"
-    )
-    openupgrade.logged_query(
-        env.cr, "ALTER TABLE crm_lead ADD recurring_revenue_monthly_prorated NUMERIC"
-    )
-    openupgrade.rename_fields(
-        env,
-        [
-            ("crm.lead", "crm_lead", "expected_revenue", "prorated_revenue"),
-            ("crm.lead", "crm_lead", "planned_revenue", "expected_revenue"),
-        ],
-    )
-    openupgrade.rename_tables(env.cr, [("crm_lead_tag_rel", "crm_tag_rel")])
+    add_crm_lead_fields(env)
+
+    # Only rename fields if target column doesn't exist
+    if not openupgrade.column_exists(env.cr, "crm_lead", "prorated_revenue"):
+        openupgrade.rename_fields(
+            env,
+            [
+                ("crm.lead", "crm_lead", "expected_revenue", "prorated_revenue"),
+            ],
+        )
+    if not openupgrade.column_exists(env.cr, "crm_lead", "expected_revenue"):
+        openupgrade.rename_fields(
+            env,
+            [
+                ("crm.lead", "crm_lead", "planned_revenue", "expected_revenue"),
+            ],
+        )
+
+    rename_crm_tables(env)
     openupgrade.remove_tables_fks(env.cr, ["crm_partner_binding"])
     # Disappeared constraint
     openupgrade.logged_query(

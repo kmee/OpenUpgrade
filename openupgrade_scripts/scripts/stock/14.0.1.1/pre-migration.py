@@ -18,20 +18,6 @@ _xmlid_renames = [
     ("stock.access_stock_picking_portal", "sale_stock.access_stock_picking_portal"),
 ]
 
-_field_additons = [
-    ("delay_alert_date", "stock.move", "stock_move", "datetime", False, "stock"),
-    ("date_deadline", "stock.picking", "stock_picking", "datetime", False, "stock"),
-    (
-        "has_deadline_issue",
-        "stock.picking",
-        "stock_picking",
-        "boolean",
-        False,
-        "stock",
-        False,
-    ),
-]
-
 
 def fast_precreate_orderpoint_product_category_id(env):
     openupgrade.logged_query(
@@ -51,12 +37,53 @@ def fast_precreate_orderpoint_product_category_id(env):
     )
 
 
+def add_stock_move_fields(env):
+    # Add datetime field manually
+    if not openupgrade.column_exists(env.cr, "stock_move", "delay_alert_date"):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE stock_move
+            ADD COLUMN delay_alert_date timestamp
+            """,
+        )
+
+
+def add_stock_picking_fields(env):
+    # Add datetime field manually
+    if not openupgrade.column_exists(env.cr, "stock_picking", "date_deadline"):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE stock_picking
+            ADD COLUMN date_deadline timestamp
+            """,
+        )
+
+    # Add boolean field normally
+    openupgrade.add_fields(
+        env,
+        [
+            (
+                "has_deadline_issue",
+                "stock.picking",
+                "stock_picking",
+                "boolean",
+                False,
+                "stock",
+                False,
+            ),
+        ],
+    )
+
+
 @openupgrade.migrate()
 def migrate(env, version):
     openupgrade.copy_columns(env.cr, _column_copies)
     openupgrade.rename_fields(env, _field_renames)
     openupgrade.rename_xmlids(env.cr, _xmlid_renames)
-    openupgrade.add_fields(env, _field_additons)
+    add_stock_move_fields(env)
+    add_stock_picking_fields(env)
     fast_precreate_orderpoint_product_category_id(env)
     # Disappeared constraint
     openupgrade.logged_query(

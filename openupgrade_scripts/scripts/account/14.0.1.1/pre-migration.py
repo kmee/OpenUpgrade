@@ -369,6 +369,7 @@ def fill_account_payment_partner_id(env):
 
 
 def fill_account_payment_data(env):
+    # Add is_internal_transfer field normally
     openupgrade.add_fields(
         env,
         [
@@ -380,24 +381,30 @@ def fill_account_payment_data(env):
                 False,
                 "account",
             ),
-            (
-                "destination_account_id",
-                "account.payment",
-                "account_payment",
-                "many2one",
-                False,
-                "account",
-            ),
-            (
-                "partner_bank_id",
-                "account.payment",
-                "account_payment",
-                "many2one",
-                False,
-                "account",
-            ),
         ],
     )
+    # Add destination_account_id manually with SQL
+    if not openupgrade.column_exists(
+        env.cr, "account_payment", "destination_account_id"
+    ):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_payment
+            ADD COLUMN destination_account_id integer
+            """,
+        )
+
+    # Add partner_bank_id manually with SQL
+    if not openupgrade.column_exists(env.cr, "account_payment", "partner_bank_id"):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_payment
+            ADD COLUMN partner_bank_id integer
+            """,
+        )
+
     # Set data for internal transfers
     openupgrade.logged_query(
         env.cr,
@@ -470,6 +477,7 @@ def fill_account_payment_data(env):
 
 
 def create_account_payment_reconciliation(env):
+    # Add boolean fields normally
     openupgrade.add_fields(
         env,
         [
@@ -496,6 +504,7 @@ def create_account_payment_reconciliation(env):
 
 
 def fill_account_bank_statement_data(env):
+    # Add is_valid_balance_start field normally
     openupgrade.add_fields(
         env,
         [
@@ -507,16 +516,20 @@ def fill_account_bank_statement_data(env):
                 False,
                 "account",
             ),
-            (
-                "previous_statement_id",
-                "account.bank.statement",
-                "account_bank_statement",
-                "many2one",
-                False,
-                "account",
-            ),
         ],
     )
+    # Add previous_statement_id manually with SQL
+    if not openupgrade.column_exists(
+        env.cr, "account_bank_statement", "previous_statement_id"
+    ):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_bank_statement
+            ADD COLUMN previous_statement_id integer
+            """,
+        )
+
     openupgrade.logged_query(
         env.cr,
         """
@@ -554,17 +567,10 @@ def fill_account_bank_statement_data(env):
 
 
 def create_account_bank_statement_line_reconciliation(env):
+    # Add boolean field normally
     openupgrade.add_fields(
         env,
         [
-            (
-                "amount_residual",
-                "account.bank.statement.line",
-                "account_bank_statement_line",
-                "float",
-                False,
-                "account",
-            ),
             (
                 "is_reconciled",
                 "account.bank.statement.line",
@@ -575,6 +581,17 @@ def create_account_bank_statement_line_reconciliation(env):
             ),
         ],
     )
+    # Add amount_residual manually with SQL
+    if not openupgrade.column_exists(
+        env.cr, "account_bank_statement_line", "amount_residual"
+    ):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_bank_statement_line
+            ADD COLUMN amount_residual numeric
+            """,
+        )
 
 
 def delete_xmlid_existing_groups(env):
@@ -592,109 +609,67 @@ def delete_xmlid_existing_groups(env):
 
 
 def fill_sequence_mixin_fields(env):
-    openupgrade.add_fields(
-        env,
-        [
-            (
-                "sequence_prefix",
-                "account.move",
-                "account_move",
-                "char",
-                False,
-                "account",
-            ),
-            (
-                "sequence_number",
-                "account.move",
-                "account_move",
-                "integer",
-                False,
-                "account",
-            ),
-            (
-                "sequence_prefix",
-                "account.bank.statement",
-                "account_bank_statement",
-                "char",
-                False,
-                "account",
-            ),
-            (
-                "sequence_number",
-                "account.bank.statement",
-                "account_bank_statement",
-                "integer",
-                False,
-                "account",
-            ),
-        ],
-    )
-    openupgrade.logged_query(
-        env.cr,
-        """
-        UPDATE account_move
-        SET sequence_prefix = substring(
-                name, '^(.*?)(?:\\d{0,9})(?:\\D*?)$'),
-            sequence_number = CAST(COALESCE(NULLIF(substring(
-                name, '^(?:.*?)(\\d{0,9})(?:\\D*?)$'),''), '0') as int)
-    """,
-    )
-    openupgrade.logged_query(
-        env.cr,
-        """
-        UPDATE account_bank_statement
-        SET sequence_prefix = substring(
-                name, '^(.*?)(?:\\d{0,9})(?:\\D*?)$'),
-            sequence_number = CAST(COALESCE(NULLIF(substring(
-                name, '^(?:.*?)(\\d{0,9})(?:\\D*?)$'),''), '0') as int)
-    """,
-    )
+    # Add fields manually with SQL
+    if not openupgrade.column_exists(env.cr, "account_move", "sequence_prefix"):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_move
+            ADD COLUMN sequence_prefix varchar
+            """,
+        )
+    if not openupgrade.column_exists(env.cr, "account_move", "sequence_number"):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_move
+            ADD COLUMN sequence_number integer
+            """,
+        )
+    if not openupgrade.column_exists(
+        env.cr, "account_bank_statement", "sequence_prefix"
+    ):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_bank_statement
+            ADD COLUMN sequence_prefix varchar
+            """,
+        )
+    if not openupgrade.column_exists(
+        env.cr, "account_bank_statement", "sequence_number"
+    ):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_bank_statement
+            ADD COLUMN sequence_number integer
+            """,
+        )
 
 
 def fill_partial_reconcile_currency(env):
-    openupgrade.add_fields(
-        env,
-        [
-            (
-                "debit_currency_id",
-                "account.partial.reconcile",
-                "account_partial_reconcile",
-                "many2one",
-                False,
-                "account",
-            ),
-            (
-                "credit_currency_id",
-                "account.partial.reconcile",
-                "account_partial_reconcile",
-                "many2one",
-                False,
-                "account",
-            ),
-        ],
-    )
-    openupgrade.logged_query(
-        env.cr,
-        """
-        UPDATE account_partial_reconcile apr
-        SET debit_currency_id = COALESCE(am.currency_id, rc.currency_id)
-        FROM account_move am,
-            res_company rc
-        WHERE am.id = apr.debit_move_id
-            AND rc.id = am.company_id
-        """,
-    )
-    openupgrade.logged_query(
-        env.cr,
-        """
-        UPDATE account_partial_reconcile apr
-        SET credit_currency_id = COALESCE(am.currency_id, rc.currency_id)
-        FROM account_move am,
-            res_company rc
-        WHERE am.id = apr.credit_move_id
-            AND rc.id = am.company_id
-        """,
-    )
+    # Add fields manually with SQL
+    if not openupgrade.column_exists(
+        env.cr, "account_partial_reconcile", "debit_currency_id"
+    ):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_partial_reconcile
+            ADD COLUMN debit_currency_id integer
+            """,
+        )
+    if not openupgrade.column_exists(
+        env.cr, "account_partial_reconcile", "credit_currency_id"
+    ):
+        openupgrade.logged_query(
+            env.cr,
+            """
+            ALTER TABLE account_partial_reconcile
+            ADD COLUMN credit_currency_id integer
+            """,
+        )
 
 
 @openupgrade.migrate()
