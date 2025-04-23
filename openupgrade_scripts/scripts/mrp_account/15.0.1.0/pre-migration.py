@@ -8,18 +8,13 @@ def pre_create_mrp_production_analytic_account_id(env):
     """Pre-create the column for avoiding computation on module upgrade"""
     if openupgrade.column_exists(env.cr, "mrp_production", "analytic_account_id"):
         return
-    openupgrade.add_fields(
-        env,
-        [
-            (
-                "analytic_account_id",
-                "mrp.production",
-                "mrp_production",
-                "many2one",
-                False,
-                "mrp_account",
-            )
-        ],
+    # Add many2one field manually with SQL
+    openupgrade.logged_query(
+        env.cr,
+        """
+        ALTER TABLE mrp_production
+        ADD COLUMN analytic_account_id integer
+        """,
     )
 
 
